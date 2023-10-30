@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>ICS chat</title>
+
+    <link rel = "stylesheet" href = "cdn/style.css">
+    <script src="https://replit.com/public/js/repl-auth-v2.js"></script>
+    <meta name="google-site-verification" content="IKSStnEQochUZ3PeMN5s-eYF2Z_629Sb8k7zNYaQ9oo" />
+  </head>
+
+  <body onkeypress="return myKeyPress(event)" onkeyup="myKeyUp(event)">
+    <div id = "menu">
+      <h1 id = "title">ICS 6th</h1>
+      <h2 id = "title2">Press '/' to open/close the chat</h2>
+      <form onSubmit = "return play()" action = "#">
+        <center>
+          <input type = "text" id = "username" autocomplete = "off" placeholder = "Username"></input>
+          <button type = "submit" id = "play">►</button>
+        </center>
+      </form>
+    </div>
+    <button id = "chatButton" onClick = "openChat()">
+      <svg xmlns="http://www.w3.org/2000/svg" height="32" viewBox="0 96 960 960" width="32" fill="white"><path d="M240 657h313v-60H240v60Zm0-130h480v-60H240v60Zm0-130h480v-60H240v60ZM80 976V236q0-23 18-41.5t42-18.5h680q23 0 41.5 18.5T880 236v520q0 23-18.5 41.5T820 816H240L80 976Z"/></svg>
+    </button>
+    <span id = "bottomInfo">
+      <span id = "views"></span><br>
+      <span id = "uniqueViews"></span><br>
+      <span id = "usersConnected">Connecting...</span>
+    </span>
+    <div id = "chat">
+      <div id = "messages"></div>
+      <input autocomplete = "off" id = "chatField" placeholder = "Max. 1024 characters"></input>
+      <button id = "sendButton" type = "submit" onClick = "sendMessage()">
+        <svg id = "sendIcon" xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 96 960 960" width="48"><path fill="white" d="M120 896V256l760 320-760 320Zm60-93 544-227-544-230v168l242 62-242 60v167Zm0 0V346v457Z"/></svg>
+      </button>
+      <span id = "notLoggedIn"><span id = "notLoggedInChild"><a onclick="LoginWithReplit()" href="javascript:void(0);">Login with Repl.it</a> to join the chat</span></span>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+      /* Initializing socket.io */
+      var socket = io();
+
+      /* Keys, that are pressed */
+      var lSlashPressed = false;
+      var lEnterPressed = false;
+
+      /* Setting cookie value, copied from w3schools */
+      function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+        let expires = "expires="+d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+      }
+
+      /* Getting cookie value, copied from w3schools */
+      function getCookie(cname) {
+        let name = cname + "=";
+        let ca = document.cookie.split(';');
+        for(let i = 0; i < ca.length; i++) {
+          let c = ca[i];
+          while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+          }
+          if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+          }
+        }
+        return "";
+      }
+
+      /* Getting username from cookie */
+      var user = getCookie('username');
+      document.getElementById('username').value = user;
+
+      /* Setting default state to logged in */
+      document.getElementById('notLoggedIn').style.display = 'none'; 
+
+      /* Auto-scrolldown in the chat */
+      function scrolldown() {
+        var elem = document.getElementById('messages');
+        elem.scrollTop = elem.scrollHeight;
+      }
+
+      /* Preventing username and chat messages from containing '/' */
+      setInterval(function() {
+        document.getElementById('chatField').value = document.getElementById('chatField').value.replace('/', ''); 
+        document.getElementById('username').value = document.getElementById('username').value.replace('/', '');
+
+        if (user !== document.getElementById('username').value) {
+          user = document.getElementById('username').value; 
+          setCookie('username', user, 36500); 
+        }
+      }, 0);
+
+      /* Formats time so it always has 2 digits */
+      function timeFormat(time) {
+        return ((String(time).split("").length === 1) ? ("0" + String(time)) : (time)); 
+      }
+
+      /* Opens the chat */
+      function openChat() {
+        document.getElementById("chatButton").style.display = "none";
+        document.getElementById("chat").style.display = "block";
+        document.getElementById("chatField").focus();
+        scrolldown();
+      }
+
+      /* Closes the chat */
+      function closeChat() {
+        document.getElementById("chatButton").style.display = "block";
+        document.getElementById("chat").style.display = "none";
+      }
+
+      /* Sends a message */
+      function sendMessage() {
+        var msg = document.getElementById("chatField").value; 
+        socket.emit('message', {user: user, msg: msg, authKey: getCookie("authKey")}); 
+        document.getElementById("chatField").value = ""; 
+      }
+
+      function myKeyPress(e) {
+        var keynum;
+
+        if (window.event) {
+          keynum = e.keyCode;
+        } 
+        else if (e.which) {         
+          keynum = e.which;
+        }
+
+        if (String.fromCharCode(keynum) === "/" && !lSlashPressed) {
+          lSlashPressed = true;
+          if (document.getElementById("chatButton").style.display === "none") {
+
+            closeChat();
+          }
+          else {            
+            openChat();
+          }
+        }
+        if (keynum === 13 && !lEnterPressed && document.activeElement.id === "chatField") {
+          sendMessage();
+        }
+      }
+
+      function myKeyUp(e) {
+        var keynum;
+
+        if (window.event) {
+          keynum = e.keyCode;
+        } 
+        else if (e.which) {         
+          keynum = e.which;
+        }
+
+        if (String.fromCharCode(keynum) === "o") {
+          lSlashPressed = false;
+        }
+        if (keynum === 13) {
+          lEnterPressed = false;
+        }
+      }
+
+      socket.on('connected', (msg) => {
+        if (getCookie("viewed") === "") {
+          setCookie("viewed", "true", 36500); 
+          if (getCookie("viewed") === "true") {
+            socket.emit('uniqueView', ''); 
+          }
+          else {
+            /*console.warn("Your browser or the website, you're viewing does not support saving cookies. The data (username, etc.) won't be saved. markus.dusek.eu/nightfight-io to enable saving cookies or enable saving cookies in your browser. "); */
+          }
+        }
+        socket.emit('testAuthKey', getCookie('authKey')); 
+      });
+
+      socket.on('usersConnected', (msg) => {
+        document.getElementById("usersConnected").innerHTML = String(msg) + (msg === 1 ? " user " : " users ") + "online"; 
+      });
+
+      socket.on('views', (msg) => {
+        document.getElementById("views").innerHTML = String(msg) + (msg === 1 ? " view " : " views ");
+      });
+
+      socket.on('uniqueViews', (msg) => {
+        document.getElementById("uniqueViews").innerHTML = String(msg) + " unique " + (msg === 1 ? " user " : " users ");
+      });
+
+      socket.on('message', (arg) => {
+        var dt = new Date(); 
+        document.getElementById("messages").innerHTML += "<div class = 'message'><span class = '" + ((arg.user === "") ? "unregisteredUser" : "registeredUser") + "'>" + ((arg.user === "") ? "Anonymus user" : arg.user) + "</span><span class = 'date'>" + timeFormat(dt.getDate()) + "-" + timeFormat(dt.getMonth()) + "-" + dt.getFullYear() + " " + timeFormat(dt.getHours()) + ":" + timeFormat(dt.getMinutes()) + ":" + timeFormat(dt.getSeconds()) + "</span><br><span>" + arg.msg + "</span></div>"; 
+        scrolldown();
+      });
+
+      socket.on('oldMessages', (arg) => {        
+        for (var i = 0; i < arg.length; i ++) {
+          var dt = new Date();
+          var offset = dt.getTimezoneOffset(); 
+          dt.setFullYear(arg[i].datetime.year); 
+          dt.setMonth(arg[i].datetime.month); 
+          dt.setDate(arg[i].datetime.date); 
+          dt.setHours(arg[i].datetime.hours); 
+          dt.setMinutes(arg[i].datetime.minutes); 
+          dt.setSeconds(arg[i].datetime.seconds); 
+          dt.setTime(dt.getTime() - offset * 60000); 
+
+          document.getElementById("messages").innerHTML += "<div class = 'message'><span class = '" + ((arg[i].user === "") ? "unregisteredUser" : "registeredUser") + "'>" + ((arg[i].user === "") ? "Anonymus user" : arg[i].user) + "</span><span class = 'date'>" + timeFormat(dt.getDate()) + "-" + timeFormat(dt.getMonth()) + "-" + dt.getFullYear() + " " + timeFormat(dt.getHours()) + ":" + timeFormat(dt.getMinutes()) + ":" + timeFormat(dt.getSeconds()) + "</span><br><span>" + arg[i].msg + "</span></div>"; 
+        }
+      }); 
+
+      socket.on('testAuthKeyResult', (arg) => {
+        if (arg === false) {
+          document.getElementById("notLoggedIn").style.display = "block"; 
+        }
+      });
+    </script>
+  </body>
+</html>
